@@ -1,5 +1,6 @@
 import sqlite3
 from typing import List, Tuple, Optional
+import pathlib, csv
 
 class DBManager:
     """
@@ -37,71 +38,314 @@ class DBManager:
             self.conn.close()
             print("データベース接続を閉じました。")
 
-    def create_relic_table(self):
+    def create_tables(self):
         """
-        装備データを格納するためのテーブルを作成する。
+        必要な初期のテーブルを作成する。
         """
         if not self.cursor:
             print("データベースに接続されていません。")
             return
 
-        # 装備名(TEXT UNIQUE), 攻撃力(INTEGER), 防御力(INTEGER) を持つテーブル
+        self.cursor.execute("PRAGMA foreign_keys = ON;")
+
         query = """
-        CREATE TABLE IF NOT EXISTS relic (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            attack INTEGER,
-            defense INTEGER
-        )
+        -- 1. effectテーブルの作成
+        CREATE TABLE IF NOT EXISTS effects (
+            effect_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            effect_text TEXT NOT NULL UNIQUE
+        );
+        -- 2. demeritテーブルの作成
+        CREATE TABLE IF NOT EXISTS demerits (
+            demerit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            demerit_text TEXT NOT NULL UNIQUE
+        );
+        -- 3. charactersテーブルの作成
+        CREATE TABLE IF NOT EXISTS characters (
+            character_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            character_name TEXT NOT NULL UNIQUE
+        );
+        -- 4. vesselテーブルの作成
+        CREATE TABLE IF NOT EXISTS vessel (
+            vessel_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vessel_name TEXT NOT NULL UNIQUE,
+            character_id INTEGER NOT NULL,
+            FOREIGN KEY (character_id) REFERENCES characters (character_id)
+        );
+        -- 5. normal_slotsテーブルの作成
+        CREATE TABLE IF NOT EXISTS normal_slots (
+            slot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vessel_id INTEGER NOT NULL,
+            slot_index INTEGER NOT NULL,
+            color TEXT NOT NULL,
+            FOREIGN KEY (vessel_id) REFERENCES vessel (vessel_id)
+        );
+        -- 6. deep_slotsテーブルの作成
+        CREATE TABLE IF NOT EXISTS deep_slots (
+            slot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vessel_id INTEGER NOT NULL,
+            slot_index INTEGER NOT NULL,
+            color TEXT NOT NULL,
+            FOREIGN KEY (vessel_id) REFERENCES vessel (vessel_id)
+        );
+        -- 7.relicsテーブルの作成
+        CREATE TABLE IF NOT EXISTS relics (
+            relic_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            relic_type TEXT NOT NULL,
+            color TEXT NOT NULL
+        );
+        -- 8.relic_effects_linkテーブルの作成
+        CREATE TABLE IF NOT EXISTS relic_effects_link (
+            link_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            relic_id INTEGER NOT NULL,
+            effect_id INTEGER NOT NULL,
+            index_in_relic INTEGER NOT NULL,
+            FOREIGN KEY (relic_id) REFERENCES relics (relic_id),
+            FOREIGN KEY (effect_id) REFERENCES effects (effect_id)
+        );
+        -- 9.relic_demerits_linkテーブルの作成
+        CREATE TABLE IF NOT EXISTS relic_demerits_link (
+            link_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            relic_id INTEGER NOT NULL,
+            demerit_id INTEGER NOT NULL,
+            index_in_relic INTEGER NOT NULL,
+            FOREIGN KEY (relic_id) REFERENCES relics (relic_id),
+            FOREIGN KEY (demerit_id) REFERENCES demerits (demerit_id)
+        );
         """
         try:
-            self.cursor.execute(query)
+            self.cursor.executescript(query)
             self.conn.commit()
             print("テーブル 'equipment' の作成または確認が完了しました。")
         except sqlite3.Error as e:
             print(f"テーブル作成エラー: {e}")
-    
-    
-    def insert_equipment(self, name: str, attack: int, defense: int):
+
+    def init_tables(self):
         """
-        新しい装備データをテーブルに挿入する。
+        既存のテーブルを削除し、新たにテーブルを作成する（デバッグ用）。
         """
-        if not self.cursor: return
-        query = "INSERT INTO equipment (name, attack, defense) VALUES (?, ?, ?)"
+        self.delete_tables()
+        self.create_tables()
+        SCRIPT_DIR = pathlib.Path(__file__).parent.absolute()
+
+        characters = [
+            "追跡者",
+            "守護者",
+            "レディ",
+            "隠者",
+            "鉄の目",
+            "無頼漢",
+            "執行者",
+            "復讐者",
+            "Universal",
+        ]
+
+        for char in characters:
+            try:
+                self.cursor.execute(
+                    "INSERT INTO characters (character_name) VALUES (?)", (char,))
+                self.conn.commit()
+            except sqlite3.IntegrityError:
+                print(f"キャラクター '{char}' は既に存在します。スキップします。")
+                
+
+        file_path = SCRIPT_DIR.parent / 'tmp' / 'effect_list.txt'
+        with open(file_path, 'r', encoding='utf-8') as file:
+            file_content = file.read()
+        effects = file_content.split(" ")
+
+
+        for effect in effects:
+            try:
+                self.cursor.execute(
+                    "INSERT INTO effects (effect_text) VALUES (?)", (effect,))
+                self.conn.commit()
+            except sqlite3.IntegrityError:
+                print(f"エフェクト '{effect}' は既に存在します。スキップします。")
+
+        file_path = SCRIPT_DIR.parent / 'tmp' / 'deep_effect_list.txt'
+        with open(file_path, 'r', encoding='utf-8') as file:
+            file_content = file.read()
+        effects = file_content.split(" ")
+
+
+        for effect in effects:
+            try:
+                self.cursor.execute(
+                    "INSERT INTO effects (effect_text) VALUES (?)", (effect,))
+                self.conn.commit()
+            except sqlite3.IntegrityError:
+                print(f"エフェクト '{effect}' は既に存在します。スキップします。")
+
+        file_path = SCRIPT_DIR.parent / 'tmp' / 'demerit_list.txt'
+        with open(file_path, 'r', encoding='utf-8') as file:
+            file_content = file.read()  
+        demerits = file_content.split(" ")
+        for demerit in demerits:
+            try:
+                self.cursor.execute(
+                    "INSERT INTO demerits (demerit_text) VALUES (?)", (demerit,))
+                self.conn.commit()
+            except sqlite3.IntegrityError:
+                print(f"デメリット '{demerit}' は既に存在します。スキップします。")
+
+        path = SCRIPT_DIR.parent / 'tmp' / 'Vessel.csv'
+        with open(path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.reader(csvfile)
+            header = next(reader)  # ヘッダー行をスキップ
+
+            character_map = {}
+            self.cursor.execute("SELECT character_id, character_name FROM characters;")
+            for char_id, char_name in self.cursor.fetchall():
+                character_map[char_name] = char_id
+
+            for row in reader:
+                char_name = row[0].strip()
+                vessel_name = row[1].strip()
+                normal_slots_colors = [row[2].strip(), row[3].strip(), row[4].strip()]
+                deep_slots_colors = [row[5].strip(), row[6].strip(), row[7].strip()]
+                acquisition = row[8].strip()
+
+                self.cursor.execute(
+                    "INSERT INTO vessel (vessel_name, character_id) VALUES (?, ?);",
+                    (vessel_name, character_map[char_name])
+                )
+
+                vessel_id = self.cursor.lastrowid
+                for index, color in enumerate(normal_slots_colors):
+                    self.cursor.execute(
+                        "INSERT INTO normal_slots (vessel_id, slot_index, color) VALUES (?, ?, ?);",
+                        (vessel_id, index + 1, color)
+                    )
+                for index, color in enumerate(deep_slots_colors):
+                    self.cursor.execute(
+                        "INSERT INTO deep_slots (vessel_id, slot_index, color) VALUES (?, ?, ?);",
+                        (vessel_id, index + 1, color)
+                    )
+                self.conn.commit()
+                print(f"Vessel '{vessel_name}' のデータが正常に挿入されました。")
+    
+    def delete_tables(self):
+        """
+        既存のテーブルを削除する（デバッグ用）。
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return
+
+        query = """
+        DROP TABLE IF EXISTS relic_demerits_link;
+        DROP TABLE IF EXISTS relic_effects_link;
+        DROP TABLE IF EXISTS relics;
+        DROP TABLE IF EXISTS deep_slots;
+        DROP TABLE IF EXISTS normal_slots;
+        DROP TABLE IF EXISTS vessel;
+        DROP TABLE IF EXISTS characters;
+        DROP TABLE IF EXISTS demerits;
+        DROP TABLE IF EXISTS effects;
+        """
         try:
-            self.cursor.execute(query, (name, attack, defense))
+            self.cursor.executescript(query)
             self.conn.commit()
-            print(f"装備 '{name}' を挿入しました。")
-        except sqlite3.IntegrityError:
-            # UNIQUE制約違反 (装備名が既に存在する)
-            print(f"警告: 装備 '{name}' は既に存在します。")
+            print("全てのテーブルを削除しました。")
         except sqlite3.Error as e:
-            print(f"データ挿入エラー: {e}")
+            print(f"テーブル削除エラー: {e}")
+    
+    def __insert_relic(self, relic_type: str, color: str) -> int:
+        """
+        relicsテーブルに新しいレリックを挿入する。
 
-    def get_all_equipment(self) -> List[sqlite3.Row]:
+        :param relic_type: レリックのタイプ
+        :param color: レリックの色
+        :return: 挿入されたレリックのID
         """
-        全ての装備データを取得する。
-        """
-        if not self.cursor: return []
-        query = "SELECT * FROM equipment"
-        try:
-            self.cursor.execute(query)
-            # fetchall() で結果を全てリストとして取得
-            return self.cursor.fetchall()
-        except sqlite3.Error as e:
-            print(f"データ取得エラー: {e}")
-            return []
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return -1
 
-    def get_equipment_by_name(self, name: str) -> Optional[sqlite3.Row]:
-        """
-        指定した名前の装備データを一つ取得する。
-        """
-        if not self.cursor: return None
-        query = "SELECT * FROM equipment WHERE name = ?"
         try:
-            self.cursor.execute(query, (name,))
-            # fetchone() で結果を一つだけ取得
-            return self.cursor.fetchone()
+            self.cursor.execute(
+                "INSERT INTO relics (relic_type, color) VALUES (?, ?);",
+                (relic_type, color)
+            )
+            self.conn.commit()
+            return self.cursor.lastrowid
         except sqlite3.Error as e:
-            print(f"データ取得エラー: {e}")
-            return None
+            print(f"レリック挿入エラー: {e}")
+            return -1
+    
+    def __link_effect_to_relic(self, relic_id: int, effect_id: int, index_in_relic: int) -> bool:
+        """
+        relic_effects_linkテーブルにレリックと効果のリンクを挿入する。
+
+        :param relic_id: レリックのID
+        :param effect_id: 効果のID
+        :param index_in_relic: レリック内での効果のインデックス
+        :return: 挿入成功ならTrue、失敗ならFalse
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return False
+        
+        query = """
+        INSERT INTO relic_effects_link (relic_id, effect_id, index_in_relic) VALUES (?, ?, ?);
+        """
+
+        try:
+            self.cursor.execute(
+                query,
+                (relic_id, effect_id, index_in_relic)
+            )
+            self.conn.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"レリック効果リンク挿入エラー: {e}")
+            return False
+
+    def __link_demerit_to_relic(self, relic_id: int, demerit_id: int, index_in_relic: int) -> bool:
+        """
+        relic_demerits_linkテーブルにレリックとデメリットのリンクを挿入する。
+
+        :param relic_id: レリックのID
+        :param demerit_id: デメリットのID
+        :param index_in_relic: レリック内でのデメリットのインデックス
+        :return: 挿入成功ならTrue、失敗ならFalse
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return False
+
+        query = """
+        INSERT INTO relic_demerits_link (relic_id, demerit_id, index_in_relic) VALUES (?, ?, ?);
+        """
+
+        try:
+            self.cursor.execute(
+                query,
+                (relic_id, demerit_id, index_in_relic)
+            )
+            self.conn.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"レリックデメリットリンク挿入エラー: {e}")
+            return False
+
+    def insert_relic(self, relic_type: str, color: str, effects , demerits ):
+        """
+        relicsテーブルに新しいレリックを挿入する。
+
+        :param relic_type: レリックのタイプ
+        :param color: レリックの色
+        :return: 挿入されたレリックのID
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return -1
+        
+        relic_id = self.__insert_relic(relic_type, color)
+        if relic_id == -1:
+            return -1
+        for index, effect_id in enumerate(effects):
+            self.__link_effect_to_relic(relic_id, effect_id, index)
+        for index, demerit_id in enumerate(demerits):
+            self.__link_demerit_to_relic(relic_id, demerit_id, index)
+        return 

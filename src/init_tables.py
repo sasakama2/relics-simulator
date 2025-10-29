@@ -1,4 +1,3 @@
-# db_manager.py が同じディレクトリにあることを想定
 from DB_manager import DBManager
 import pathlib
 
@@ -10,17 +9,4 @@ DB_PATH = SCRIPT_DIR.parent / 'db' / 'static_data.db'
 # DBManagerのインスタンス化
 db_manager = DBManager(db_name=DB_PATH)
 
-# 3. データを挿入
-type = "通常"
-effects = [
-    2,
-    3,
-    4,
-]
-demerits = []
-color = "赤"
-
-db_manager.insert_relic(relic_type=type, effects=effects, demerits=demerits, color=color)
-
-# 6. 接続を閉じる
-db_manager.close()
+db_manager.init_tables()

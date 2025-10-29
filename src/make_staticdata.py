@@ -1,7 +1,6 @@
 from DB_manager import DBManager
 import pathlib
 import sqlite3
-import io
 import csv
 
 
