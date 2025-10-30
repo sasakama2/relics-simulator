@@ -14,12 +14,21 @@ db_manager = DBManager(db_name=DB_PATH)
 type = "通常"
 effects = [
     2,
-    3,
+    9,
     4,
 ]
 demerits = []
 color = "赤"
 
+db_manager.insert_relic(relic_type=type, effects=effects, demerits=demerits, color=color)
+
+type = "深層"
+effects = [
+    8,
+    4,
+]
+demerits = [6]
+color = "青"
 db_manager.insert_relic(relic_type=type, effects=effects, demerits=demerits, color=color)
 
 # 6. 接続を閉じる

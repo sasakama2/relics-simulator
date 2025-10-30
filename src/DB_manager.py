@@ -349,3 +349,108 @@ class DBManager:
         for index, demerit_id in enumerate(demerits):
             self.__link_demerit_to_relic(relic_id, demerit_id, index)
         return 
+    
+    def fetch_character_vessels(self, character_id: int) -> List[sqlite3.Row]:
+        """
+        指定されたキャラクター名に関連する全ての献器を取得する。
+
+        :param character_name: キャラクター名
+        :return: 献器のリスト
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return []
+
+        query = """
+        SELECT v.vessel_id, v.vessel_name
+        FROM vessel v
+        JOIN characters c ON v.character_id = c.character_id
+        WHERE c.character_id = ?;
+        """
+
+        try:
+            self.cursor.execute(query, (character_id,))
+            vessels = self.cursor.fetchall()
+            return vessels
+        except sqlite3.Error as e:
+            print(f"献器取得エラー: {e}")
+            return []
+    
+    def fetch_vessel_slots(self, vessel_id: int) -> Tuple[List[sqlite3.Row], List[sqlite3.Row]]:
+        """
+        指定された献器IDに関連する通常スロットと深層スロットを取得する。
+
+        :param vessel_id: 献器ID
+        :return: 通常スロットと深層スロットのタプル
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return ([], [])
+
+        try:
+            self.cursor.execute(
+                "SELECT slot_index, color FROM normal_slots WHERE vessel_id = ? ORDER BY slot_index;",
+                (vessel_id,)
+            )
+            normal_slots = self.cursor.fetchall()
+
+            self.cursor.execute(
+                "SELECT slot_index, color FROM deep_slots WHERE vessel_id = ? ORDER BY slot_index;",
+                (vessel_id,)
+            )
+            deep_slots = self.cursor.fetchall()
+
+            return (normal_slots, deep_slots)
+        except sqlite3.Error as e:
+            print(f"献器スロット取得エラー: {e}")
+            return ([], [])
+        
+    def fetch_relics_by_effect(self, effect_id: int) -> List[sqlite3.Row]:
+        """
+        指定された効果テキストを持つ全てのレリックを取得する。
+
+        :param effect_text: 効果テキスト
+        :return: レリックのリスト
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return []
+
+        query = """
+        SELECT r.relic_id, r.relic_type, r.color
+        FROM relics r
+        JOIN relic_effects_link rel ON r.relic_id = rel.relic_id
+        WHERE rel.effect_id = ?;
+        """
+        try:
+            self.cursor.execute(query, (effect_id,))
+            relics = self.cursor.fetchall()
+            return relics
+        except sqlite3.Error as e:
+            print(f"レリック取得エラー: {e}")
+            return []
+
+    def search_effect_by_term(self, search_term: str) -> Optional[sqlite3.Row]:
+        """
+        効果テキストからeffect_idを検索する。
+
+        :param effect_text: 効果テキスト
+        :return: effect_idまたはNone
+        """
+        if not self.cursor:
+            print("データベースに接続されていません。")
+            return None
+
+        query = """
+        SELECT effect_id, effect_text FROM effects WHERE effect_text LIKE ?;
+        """
+        try:
+            self.cursor.execute(query, (f'%{search_term}%',))
+            result = self.cursor.fetchall()
+            if result:
+                return result
+            else:
+                return None
+        except sqlite3.Error as e:
+            print(f"効果ID検索エラー: {e}")
+            return None
