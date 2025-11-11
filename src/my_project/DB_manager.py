@@ -14,6 +14,7 @@ class DBManager:
         self.conn: Optional[sqlite3.Connection] = None
         self.cursor: Optional[sqlite3.Cursor] = None
         self._connect()
+        self.root_dir = pathlib.Path(__file__).parent.parent.parent.absolute()
 
     def _connect(self):
         """
@@ -125,7 +126,6 @@ class DBManager:
         """
         self.delete_tables()
         self.create_tables()
-        SCRIPT_DIR = pathlib.Path(__file__).parent.absolute()
 
         characters = [
             "追跡者",
@@ -148,7 +148,7 @@ class DBManager:
                 print(f"キャラクター '{char}' は既に存在します。スキップします。")
                 
 
-        file_path = SCRIPT_DIR.parent / 'tmp' / 'effect_list.txt'
+        file_path = self.root_dir / 'tmp' / 'effect_list.txt'
         with open(file_path, 'r', encoding='utf-8') as file:
             file_content = file.read()
         effects = file_content.split(" ")
@@ -162,7 +162,7 @@ class DBManager:
             except sqlite3.IntegrityError:
                 print(f"エフェクト '{effect}' は既に存在します。スキップします。")
 
-        file_path = SCRIPT_DIR.parent / 'tmp' / 'deep_effect_list.txt'
+        file_path = self.root_dir / 'tmp' / 'deep_effect_list.txt'
         with open(file_path, 'r', encoding='utf-8') as file:
             file_content = file.read()
         effects = file_content.split(" ")
@@ -176,7 +176,7 @@ class DBManager:
             except sqlite3.IntegrityError:
                 print(f"エフェクト '{effect}' は既に存在します。スキップします。")
 
-        file_path = SCRIPT_DIR.parent / 'tmp' / 'demerit_list.txt'
+        file_path = self.root_dir / 'tmp' / 'demerit_list.txt'
         with open(file_path, 'r', encoding='utf-8') as file:
             file_content = file.read()  
         demerits = file_content.split(" ")
@@ -188,7 +188,7 @@ class DBManager:
             except sqlite3.IntegrityError:
                 print(f"デメリット '{demerit}' は既に存在します。スキップします。")
 
-        path = SCRIPT_DIR.parent / 'tmp' / 'Vessel.csv'
+        path = self.root_dir / 'tmp' / 'Vessel.csv'
         with open(path, 'r', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             header = next(reader)  # ヘッダー行をスキップ

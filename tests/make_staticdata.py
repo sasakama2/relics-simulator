@@ -1,4 +1,4 @@
-from src import DBManager
+from my_project.DB_manager import DBManager 
 import pathlib
 import sqlite3
 import csv

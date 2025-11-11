@@ -1,4 +1,4 @@
-from src.DB_manager import DBManager
+from my_project.DB_manager import DBManager 
 import pathlib
 
 SCRIPT_DIR = pathlib.Path(__file__).parent.absolute()
@@ -7,7 +7,7 @@ SCRIPT_DIR = pathlib.Path(__file__).parent.absolute()
 DB_PATH = SCRIPT_DIR.parent / 'db' / 'static_data.db'
 
 # DBManagerのインスタンス化
-db_manager = DBManager(db_name=DB_PATH)
+db_manager = DBManager(db_name=str(DB_PATH))
 
 # 3. データを挿入
 type = "通常"
