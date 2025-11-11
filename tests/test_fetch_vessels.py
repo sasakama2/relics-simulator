@@ -1,4 +1,4 @@
-from DB_manager import DBManager
+from src import DBManager
 import pathlib
 
 SCRIPT_DIR = pathlib.Path(__file__).parent.absolute()

@@ -1,5 +1,4 @@
-# db_manager.py が同じディレクトリにあることを想定
-from DB_manager import DBManager 
+from src.DB_manager import DBManager
 import pathlib
 
 SCRIPT_DIR = pathlib.Path(__file__).parent.absolute()
