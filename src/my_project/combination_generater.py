@@ -1,6 +1,6 @@
-from . import DB_manager
+from DB_manager import DBManager
 
-def get_choices_by_effects(character_id, effect_ids, db_manager_instance: DB_manager):
+def get_choices_by_effects(character_id, effect_ids, db_manager_instance: DBManager):
     vessels = {}
     universal_vessels = []
     relics = []
